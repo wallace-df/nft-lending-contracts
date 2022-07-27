@@ -12,37 +12,36 @@ contract NFTLendingController {
 
   struct Loan {
     uint256 id;
-    address nftCollateralAddress;
-    uint256 nftCollateralTokenId;
+    address nftCollectionAddress;
+    uint256 nftTokenId;
     uint256 amount;
     uint256 interest;
     uint256 duration;
-    uint256 startTime;
-    uint256 endTime;
+    uint256 dueTimestamp;
     address borrowerAddress;
     address lenderAddress;
-    bool withdrawn;
     LoanStatus status;
   }
 
   enum LoanStatus{
     OPEN,
-    ACTIVE,
     CANCELLED,
+    ACTIVE,
     REPAID,
-    DEFAULTED
+    DEFAULTED,
+    CLAIMED
   }
 
   ////////////////////////////////////////////////////////////////////////////////
   // EVENTS
   ////////////////////////////////////////////////////////////////////////////////
 
-  event LoanListed(uint256 loanId, address nftCollateralAddress, uint256 nftCollateralTokenId, uint256 amount, uint256 interest, uint256 duration, address borrowerAddress);
-  event LoanActivated(uint256 id, uint256 startTime, uint256 endTime, address lenderAddress);
-  event LoanCancelled(uint256 id);
-  event LoanRepaid(uint256 id);
-  event LoanFundsWithdrawn(uint256 id);
-  event LoanCollateralWithdrawn(uint256 id);
+  event LoanListed(uint256 loanId, address nftCollectionAddress, uint256 nftTokenId, uint256 amount, uint256 interest, uint256 duration, address borrowerAddress);
+  event LoanCancelled(uint256 loanId);
+  event LoanActivated(uint256 loanId, uint256 dueTimestamp, address lenderAddress);
+  event LoanRepaid(uint256 loanId);
+  event LoanDefaulted(uint256 loanId);
+  event LoanClaimed(uint256 loanId);
 
   ////////////////////////////////////////////////////////////////////////////////
   // STORAGE VARIABLES
@@ -55,43 +54,40 @@ contract NFTLendingController {
   // FUNCTIONS
   ////////////////////////////////////////////////////////////////////////////////
 
-  function listLoan(address _nftCollateralAddress, uint256 _nftCollateralTokenId, uint256 _amount, uint256 _interest, uint256 _duration) external {
-    require(_nftCollateralAddress != address(0x0), "Invalid NFT address.");
-    require(_nftCollateralTokenId > 0, "Invalid NFT tokenId.");
+  function listLoan(address _nftCollectionAddress, uint256 _nftTokenId, uint256 _amount, uint256 _interest, uint256 _duration) external {
+    require(_nftCollectionAddress != address(0x0), "Invalid NFT address.");
+    require(_nftTokenId > 0, "Invalid NFT tokenId.");
     require(_amount > 0, "Invalid loan amount.");
     require(_interest > 0, "Invalid loan interest.");
     require(_duration > 1 minutes, "Invalid loan duration.");
 
-    IERC721 nftCollection = IERC721(_nftCollateralAddress);
-    require(nftCollection.ownerOf(_nftCollateralTokenId) == msg.sender, "User does not own this NFT");
-    nftCollection.transferFrom(msg.sender, address(this), _nftCollateralTokenId);
+    IERC721(_nftCollectionAddress).transferFrom(msg.sender, address(this), _nftTokenId);
 
     _lastLoanId++;  
+ 
     Loan storage loan = _loans[_lastLoanId];
     loan.id = _lastLoanId;
-    loan.nftCollateralAddress = _nftCollateralAddress;
-    loan.nftCollateralTokenId = _nftCollateralTokenId;
+    loan.nftCollectionAddress = _nftCollectionAddress;
+    loan.nftTokenId = _nftTokenId;
     loan.amount = _amount;
     loan.interest = _interest;
     loan.duration = _duration;
-    loan.startTime = 0;
-    loan.endTime = 0;
+    loan.dueTimestamp = 0;
     loan.borrowerAddress = msg.sender;
     loan.lenderAddress = address(0x0);
-    loan.withdrawn = false;
     loan.status = LoanStatus.OPEN;
 
-    emit LoanListed(_lastLoanId, _nftCollateralAddress, _nftCollateralTokenId, _amount, _interest, _duration, msg.sender);
+    emit LoanListed(_lastLoanId, _nftCollectionAddress, _nftTokenId, _amount, _interest, _duration, msg.sender);
   }
 
   function cancelLoan(uint256 _loanId) external {
     Loan storage loan = _loans[_loanId];
     
-    require(_loanId > 0 && loan.id == _loanId, "Loan not found");
+    require(loan.id == _loanId && _loanId > 0, "Loan not found");
     require(loan.status == LoanStatus.OPEN, "Loan is not OPEN");
-    require(msg.sender == loan.borrowerAddress, "Only the borrower can cancel the loan");
+    require(loan.borrowerAddress == msg.sender, "Only the borrower can cancel the loan");
 
-    IERC721(loan.nftCollateralAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftCollateralTokenId);
+    IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftTokenId);
 
     loan.status = LoanStatus.CANCELLED;
 
@@ -101,66 +97,59 @@ contract NFTLendingController {
   function activateLoan(uint256 _loanId) external {
     Loan storage loan = _loans[_loanId];
     
-    require(_loanId > 0 && loan.id == _loanId, "Loan not found");
+    require(loan.id == _loanId && _loanId > 0, "Loan not found");
     require(loan.status == LoanStatus.OPEN, "Loan is not OPEN");
-    require(msg.sender != loan.borrowerAddress, "Borrower cannot activate the loan");
+    require(loan.borrowerAddress != msg.sender, "Borrower cannot activate the loan");
 
-    loan.startTime = block.timestamp;
-    loan.endTime = block.timestamp + loan.duration;
+    loan.dueTimestamp = block.timestamp + loan.duration;
     loan.lenderAddress = msg.sender;
     loan.status = LoanStatus.ACTIVE;
 
     // TODO: transfer money from lender to borrower.
 
-    emit LoanActivated(loan.id, loan.startTime, loan.endTime, loan.lenderAddress);
+    emit LoanActivated(loan.id, loan.dueTimestamp, loan.lenderAddress);
   }
 
   function repayLoan(uint _loanId) external {
     Loan storage loan = _loans[_loanId];
     
-    require(_loanId > 0 && loan.id == _loanId, "Loan not found");
+    require(loan.id == _loanId && _loanId > 0, "Loan not found");
     require(loan.status == LoanStatus.ACTIVE, "Loan is not ACTIVE");
-    require(loan.endTime >= block.timestamp, "Loan has defaulted");
-    require(msg.sender == loan.borrowerAddress, "Only the borrower can repay the loan");
+    require(loan.borrowerAddress == msg.sender, "Only the borrower can repay the loan");
 
     loan.status = LoanStatus.REPAID;
 
     // TODO: escrow payment for the lender.
 
-    IERC721(loan.nftCollateralAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftCollateralTokenId);
+    IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftTokenId);
 
     emit LoanRepaid(loan.id);
   }
 
-  function withdrawLoanFunds(uint256 _loanId) external {
+  function claimLoan(uint256 _loanId) external {
     Loan storage loan = _loans[_loanId];
     
-    require(_loanId > 0 && loan.id == _loanId, "Loan not found");
+    require(loan.id == _loanId && _loanId > 0, "Loan not found");
     require(loan.status == LoanStatus.REPAID, "Loan is not REPAID");
-    require(msg.sender == loan.lenderAddress, "Only the lender can withdraw the loan funds");
-    require(loan.withdrawn == false, "Loan funds have been already withdrawn");
 
     // TODO: transfer funds to lender.
 
-    loan.withdrawn = true;
+    loan.status = LoanStatus.CLAIMED;
 
-    emit LoanFundsWithdrawn(loan.id);
+    emit LoanClaimed(loan.id);
   }
 
-  function withdrawLoanCollateral(uint _loanId) external {
+  function defaultLoan(uint _loanId) external {
     Loan storage loan = _loans[_loanId];
     
-    require(_loanId > 0 && loan.id == _loanId, "Loan not found");
+    require(loan.id == _loanId && _loanId > 0, "Loan not found");
     require(loan.status == LoanStatus.ACTIVE, "Loan is not ACTIVE");
-    require(loan.endTime < block.timestamp, "Loan is still ACTIVE");
-    require(msg.sender == loan.lenderAddress, "Only the lender can withdraw the loan collateral");
-    require(loan.withdrawn == false, "Loan collateral has been already withdrawn");
+    require(loan.dueTimestamp < block.timestamp, "Loan is still ACTIVE");
 
-    IERC721(loan.nftCollateralAddress).transferFrom(address(this), loan.lenderAddress, loan.nftCollateralTokenId);
+    IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.lenderAddress, loan.nftTokenId);
     
-    loan.withdrawn = true;
     loan.status = LoanStatus.DEFAULTED;
 
-    emit LoanCollateralWithdrawn(loan.id);      
+    emit LoanDefaulted(loan.id);      
   }
 }
