@@ -37,7 +37,7 @@ contract NFTLendingController {
   // EVENTS
   ////////////////////////////////////////////////////////////////////////////////
 
-  event LoanListed(address nftCollateralAddress, uint256 nftCollateralTokenId, uint256 amount, uint256 interest, uint256 duration, address borrowerAddress);
+  event LoanListed(uint256 loanId, address nftCollateralAddress, uint256 nftCollateralTokenId, uint256 amount, uint256 interest, uint256 duration, address borrowerAddress);
   event LoanActivated(uint256 id, uint256 startTime, uint256 endTime, address lenderAddress);
   event LoanCancelled(uint256 id);
   event LoanRepaid(uint256 id);
@@ -60,7 +60,7 @@ contract NFTLendingController {
     require(_nftCollateralTokenId > 0, "Invalid NFT tokenId.");
     require(_amount > 0, "Invalid loan amount.");
     require(_interest > 0, "Invalid loan interest.");
-    require(_duration > 7 days, "Invalid loan duration.");
+    require(_duration > 1 minutes, "Invalid loan duration.");
 
     IERC721 nftCollection = IERC721(_nftCollateralAddress);
     require(nftCollection.ownerOf(_nftCollateralTokenId) == msg.sender, "User does not own this NFT");
@@ -81,7 +81,7 @@ contract NFTLendingController {
     loan.withdrawn = false;
     loan.status = LoanStatus.OPEN;
 
-    emit LoanListed(_nftCollateralAddress, _nftCollateralTokenId, _amount, _interest, _duration, msg.sender);
+    emit LoanListed(_lastLoanId, _nftCollateralAddress, _nftCollateralTokenId, _amount, _interest, _duration, msg.sender);
   }
 
   function cancelLoan(uint256 _loanId) external {
@@ -90,6 +90,8 @@ contract NFTLendingController {
     require(_loanId > 0 && loan.id == _loanId, "Loan not found");
     require(loan.status == LoanStatus.OPEN, "Loan is not OPEN");
     require(msg.sender == loan.borrowerAddress, "Only the borrower can cancel the loan");
+
+    IERC721(loan.nftCollateralAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftCollateralTokenId);
 
     loan.status = LoanStatus.CANCELLED;
 
@@ -126,6 +128,7 @@ contract NFTLendingController {
     // TODO: escrow payment for the lender.
 
     IERC721(loan.nftCollateralAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftCollateralTokenId);
+
     emit LoanRepaid(loan.id);
   }
 
@@ -154,6 +157,7 @@ contract NFTLendingController {
     require(loan.withdrawn == false, "Loan collateral has been already withdrawn");
 
     IERC721(loan.nftCollateralAddress).transferFrom(address(this), loan.lenderAddress, loan.nftCollateralTokenId);
+    
     loan.withdrawn = true;
     loan.status = LoanStatus.DEFAULTED;
 
