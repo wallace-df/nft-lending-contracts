@@ -40,8 +40,8 @@ contract NFTLendingController {
   event LoanCancelled(uint256 loanId);
   event LoanActivated(uint256 loanId, uint256 dueTimestamp, address lenderAddress);
   event LoanRepaid(uint256 loanId);
-  event LoanDefaulted(uint256 loanId);
   event LoanClaimed(uint256 loanId);
+  event LoanDefaulted(uint256 loanId);
 
   ////////////////////////////////////////////////////////////////////////////////
   // STORAGE VARIABLES
@@ -61,8 +61,6 @@ contract NFTLendingController {
     require(_interest > 0, "Invalid loan interest.");
     require(_duration > 1 minutes, "Invalid loan duration.");
 
-    IERC721(_nftCollectionAddress).transferFrom(msg.sender, address(this), _nftTokenId);
-
     _lastLoanId++;  
  
     Loan storage loan = _loans[_lastLoanId];
@@ -77,6 +75,8 @@ contract NFTLendingController {
     loan.lenderAddress = address(0x0);
     loan.status = LoanStatus.OPEN;
 
+    IERC721(_nftCollectionAddress).transferFrom(msg.sender, address(this), _nftTokenId);
+
     emit LoanListed(_lastLoanId, _nftCollectionAddress, _nftTokenId, _amount, _interest, _duration, msg.sender);
   }
 
@@ -87,9 +87,9 @@ contract NFTLendingController {
     require(loan.status == LoanStatus.OPEN, "Loan is not OPEN");
     require(loan.borrowerAddress == msg.sender, "Only the borrower can cancel the loan");
 
-    IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftTokenId);
-
     loan.status = LoanStatus.CANCELLED;
+
+    IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftTokenId);
 
     emit LoanCancelled(loan.id);
   }
@@ -106,11 +106,11 @@ contract NFTLendingController {
     loan.status = LoanStatus.ACTIVE;
 
     // TODO: transfer money from lender to borrower.
-
+    
     emit LoanActivated(loan.id, loan.dueTimestamp, loan.lenderAddress);
   }
 
-  function repayLoan(uint _loanId) external {
+  function repayLoan(uint256 _loanId) external {
     Loan storage loan = _loans[_loanId];
     
     require(loan.id == _loanId && _loanId > 0, "Loan not found");
@@ -120,7 +120,6 @@ contract NFTLendingController {
     loan.status = LoanStatus.REPAID;
 
     // TODO: escrow payment for the lender.
-
     IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.borrowerAddress, loan.nftTokenId);
 
     emit LoanRepaid(loan.id);
@@ -132,24 +131,24 @@ contract NFTLendingController {
     require(loan.id == _loanId && _loanId > 0, "Loan not found");
     require(loan.status == LoanStatus.REPAID, "Loan is not REPAID");
 
-    // TODO: transfer funds to lender.
-
     loan.status = LoanStatus.CLAIMED;
+
+    // TODO: transfer funds to lender.
 
     emit LoanClaimed(loan.id);
   }
 
-  function defaultLoan(uint _loanId) external {
+  function defaultLoan(uint256 _loanId) external {
     Loan storage loan = _loans[_loanId];
     
     require(loan.id == _loanId && _loanId > 0, "Loan not found");
     require(loan.status == LoanStatus.ACTIVE, "Loan is not ACTIVE");
     require(loan.dueTimestamp < block.timestamp, "Loan is still ACTIVE");
 
-    IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.lenderAddress, loan.nftTokenId);
-    
     loan.status = LoanStatus.DEFAULTED;
 
+    IERC721(loan.nftCollectionAddress).transferFrom(address(this), loan.lenderAddress, loan.nftTokenId);
+    
     emit LoanDefaulted(loan.id);      
   }
 }
