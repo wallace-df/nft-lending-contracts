@@ -89,7 +89,7 @@ func listLoan{
         validNFTAddress = 0
     end
     with_attr error_message("Invalid NFT address"):
-        assert validNFTAddress  = 1
+        assert validNFTAddress = 1
     end
 
     let (validTokenID) = uint256_lt(Uint256(0,0), _nftTokenId)
