@@ -1,5 +1,5 @@
-# NFT Launcher Contracts
-Smart contracts for NFT Collection Launcher.
+# NFT P2P Lending Contracts
+Smart contracts for NFT P2P Lending Contracts.
 
 - Cairo:
   - Shell scripts are included to compile and deploy contracts on the StarkNet-testnet network (https://starknet.io/).
