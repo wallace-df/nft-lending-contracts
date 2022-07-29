@@ -1,5 +1,5 @@
-# NFT P2P Lending Contracts
-Smart contracts for NFT P2P Lending Contracts.
+# NFT Lending Contracts
+Smart contracts for NFT Lending Contracts.
 
 - Cairo:
   - Shell scripts are included to compile and deploy contracts on the StarkNet-testnet network (https://starknet.io/).
