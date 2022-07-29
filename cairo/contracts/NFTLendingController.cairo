@@ -235,7 +235,7 @@ func repayLoan{
         assert loan.borrowerAddress = caller
     end
 
-    _loans.write(_loanId, Loan(_loanId, loan.nftCollectionAddress, loan.nftTokenId, loan.amount, loan.interest, loan.duration, loan.dueTimestamp, loan.borrowerAddress, loan.lenderAddress, LOAN_STATUS_DEFAULTED))
+    _loans.write(_loanId, Loan(_loanId, loan.nftCollectionAddress, loan.nftTokenId, loan.amount, loan.interest, loan.duration, loan.dueTimestamp, loan.borrowerAddress, loan.lenderAddress, LOAN_STATUS_REPAID))
 
     # TODO: escrow payment for the lender.
     IERC721.transferFrom(contract_address=loan.nftCollectionAddress, _from=this, to=loan.borrowerAddress, tokenId=loan.nftTokenId)    
