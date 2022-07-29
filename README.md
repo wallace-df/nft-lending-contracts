@@ -1,11 +1,16 @@
 # NFT Lending Contracts
-Smart contracts for NFT Lending Contracts.
+Cairo and Solidity contracts for NFT Lending dApp.
 
-- Cairo:
-  - Shell scripts are included to compile and deploy contracts on the StarkNet-testnet network (https://starknet.io/).
-- Solidity:
-  - Hardhat configuration is included to compile and deploy contracts on the zkSync-testnet network (https://zksync.io/).
+---
 
+NFT P2P Lending is a dApp that allows users to get loans using their NFTs as collateral.
+ - Supports the zkSync (https://zksync.io/) and StarkNet (https://starknet.io/) networks.
+ - Borrowers can specify the loan terms and lock NFTs as collateral.
+ - Lenders can accept loans and redeem locked NFTs in case of default. 
+ - Loan and collateral management is performed by smart contracts.
+ 
+ ---
+ 
 
 ## Cairo
 
