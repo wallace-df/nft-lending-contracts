@@ -84,7 +84,7 @@ func listLoan{
     } (_nftCollectionAddress: felt, _nftTokenId: Uint256, _amount: Uint256, _interest: Uint256, _duration: felt):
     alloc_locals 
 
-    tempvar validNFTAddress = 1
+    local validNFTAddress = 1
     if _nftCollectionAddress == 0:
         validNFTAddress = 0
     end
@@ -92,23 +92,26 @@ func listLoan{
         assert validNFTAddress = 1
     end
 
-    let (validTokenID) = uint256_lt(Uint256(0,0), _nftTokenId)
+    let (validTokenID) = uint256_lt(Uint256(0, 0), _nftTokenId)
+    uint256_check(_nftTokenId)
     with_attr error_message("Invalid NFT tokenId"):
         assert validTokenID  = 1
     end
 
-    let (validAmount) = uint256_lt(Uint256(0,0), _amount)
+    let (validAmount) = uint256_lt(Uint256(0 ,0), _amount)
+    uint256_check(_amount)
     with_attr error_message("Invalid amount"):
         assert validAmount  = 1
     end
 
-    let (validInterest) = uint256_lt(Uint256(0,0), _interest)
+    let (validInterest) = uint256_lt(Uint256(0, 0), _interest)
+    uint256_check(_interest)
     with_attr error_message("Invalid interest"):
         assert validInterest  = 1
     end
 
     let (lastLoanId) = _lastLoanId.read()
-    let (newLoanId) = uint256_checked_add(lastLoanId, Uint256(1,0))
+    let (newLoanId) = uint256_checked_add(lastLoanId, Uint256(1, 0))
     _lastLoanId.write(newLoanId)
 
     let (caller) = get_caller_address()
@@ -140,12 +143,8 @@ func cancelLoan{
         assert loanFound = 1
     end
 
-    tempvar loanIsOpen = 0
-    if loan.status == LOAN_STATUS_OPEN:
-        loanIsOpen = 1
-    end
     with_attr error_message("Loan is not OPEN"):
-        assert loanIsOpen = 1
+        assert loan.status = LOAN_STATUS_OPEN
     end
     
     let (caller) = get_caller_address()
@@ -182,17 +181,13 @@ func activateLoan{
         assert loanFound = 1
     end
 
-    tempvar loanIsOpen = 0
-    if loan.status == LOAN_STATUS_OPEN:
-        loanIsOpen = 1
-    end
     with_attr error_message("Loan is not OPEN"):
-        assert loanIsOpen = 1
+        assert loan.status = LOAN_STATUS_OPEN
     end
     
     let (caller) = get_caller_address()
     let (this) = get_contract_address()
-    tempvar callerIsBorrower = 0
+    local callerIsBorrower = 0
     if caller == loan.borrowerAddress:
         callerIsBorrower = 1
     end 
@@ -230,12 +225,8 @@ func repayLoan{
         assert loanFound = 1
     end
 
-    tempvar loanIsActive = 0
-    if loan.status == LOAN_STATUS_ACTIVE:
-        loanIsActive = 1
-    end
     with_attr error_message("Loan is not ACTIVE"):
-        assert loanIsActive = 1
+        assert loan.status = LOAN_STATUS_ACTIVE
     end
     
     let (caller) = get_caller_address()
@@ -273,12 +264,8 @@ func claimLoan{
         assert loanFound = 1
     end
 
-    tempvar loanIsRepaid = 0
-    if loan.status == LOAN_STATUS_REPAID:
-        loanIsRepaid = 1
-    end
     with_attr error_message("Loan is not REPAID"):
-        assert loanIsRepaid = 1
+        assert loan.status = LOAN_STATUS_REPAID
     end
     
     _loans.write(_loanId, Loan(_loanId, loan.nftCollectionAddress, loan.nftTokenId, loan.amount, loan.interest, loan.duration, loan.dueTimestamp, loan.borrowerAddress, loan.lenderAddress, LOAN_STATUS_CLAIMED))
@@ -308,12 +295,8 @@ func defaultLoan{
         assert loanFound = 1
     end
 
-    tempvar loanIsActive = 0
-    if loan.status == LOAN_STATUS_ACTIVE:
-        loanIsActive = 1
-    end
     with_attr error_message("Loan is not ACTIVE"):
-        assert loanIsActive = 1
+        assert loan.status = LOAN_STATUS_ACTIVE
     end
     
     let (now) = get_block_timestamp()
